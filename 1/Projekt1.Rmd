@@ -1,0 +1,1363 @@
+---
+title: "Sprawozdanie z projektu 1"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: #default #latex_engine:xelatex 
+  word_document: default
+---
+
+
+
+<right> <h4>*Jakub Kuczmarski*</h4> </right>
+
+<br>
+
+# Temat projektu
+Projekt składa się z trzech problemów, które opierają się na obróbce i analizie danych, a następnie wyciągnęciu stosownych wniosków. Dwa pierwsze problemy dotyczyły klimatu, tj. zmian pogody w okresie ferii zimowych na przestrzeni lat, zaś problem trzeci odnosił się do zbadania sygnału z detektora promieniowania gamma.
+
+
+# Zbiór danych
+Do realizacji zadania wykorzystano dwa zbiory danych. W przypadku dwóch pierwszych zadań był to ogólnodostępny zbiór danych dotyczących pogody w ciągu roku na przestrzeni kilkudziesięciu lat (od 1951 do 2023). Zbiór ten zawierał nastęujace informacje:
+
+Kod stacji                              9 <br>
+Nazwa stacji                           30 <br>
+Rok                                     4 <br>
+Miesiąc                                 2 <br>
+Dzień                                   2 <br>
+Maksymalna temperatura dobowa [°C]      6/1 <br>
+Status pomiaru TMAX                     1 <br>
+Minimalna temperatura dobowa [°C]       6/1 <br>
+Status pomiaru TMIN                     1 <br>
+Średnia temperatura dobowa [°C]         8/1 <br>
+Status pomiaru STD                      1 <br>
+Temperatura minimalna przy gruncie [°C] 6/1 <br>
+Status pomiaru TMNG                     1 <br>
+Suma dobowa opadów [mm]                 8/1 <br>
+Status pomiaru SMDB                     1 <br>
+Rodzaj opadu  [S/W/ ]                   1 <br>
+Wysokość pokrywy śnieżnej [cm]          5 <br>
+Status pomiaru PKSN                     1 <br>
+
+Status "8" brak pomiaru <br>
+Status "9" brak zjawiska
+
+Do realizacji zadania trzeciego skorzystano z udostępnionego zbioru danych z sygnałem z detektora promieniowania gamma. Zbiór ten zawierał kolejno mierzone implusy (czas próbkowania 50MHz) obarczone pewnym szumem.
+
+
+# Problem 1 
+Problem pierwszy polegał na wyborze trzech odległych lokalizacji i czytelnym zobrazowaniu występujących między nimi różnic ze względu na maksymalną dobową temperaturę oraz zmiany temperatury dla kolejnych dni. W podpunkcie drugim należało wybrać jedną z lokalizcji i zbadać rozkład wahań temperatur między 2 następuiącymi po sobie dniami , a następnie ocenić jego dopasowanie do rozkładu normalnego oraz oszacować tempetarurę na kolejny dzień, znając pogodę w dniu poprzednim.
+
+## Zadanie 1a
+
+### Treść
+Proszę wybrać trzy odległe lokalizacje pomiarów i czytelnie zobrazować występujące między nimi różnice ze względu na (3 różne analizy): <br>
+1. Maksymalne dobowe temperatury (gdzie było zimniej?) <br>
+2. Wahania maksymalnej dobowej temperatury z dnia na dzień (gdzie było stabilniej?).
+
+
+### Rozwiązanie
+
+Załadowano wymagane pakiety i dane
+
+```{r message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+library(tidyverse, quietly = TRUE)
+library(dplyr, quietly = TRUE)
+```
+
+Zgodnie z poleceniem do realizacji problemu 1 wykorzystano jedynie dane z okresu ferii zimowych - styczeń i luty roku 2022 oraz styczeń i luty roku 2023.
+
+Pobrane pliki do tego zadania to: k_d_01_2022, k_d_02_2022, k_d_01_2023, k_d_02_2023
+
+Zaimportowano powyższe pliki i wczytano pliki CSV
+
+```{r, echo=FALSE}
+# Styczeń 2022
+path1 = "./zad1-dane/2022_01_k/k_d_01_2022.csv"
+# Luty 2022
+path2 = "./zad1-dane/2022_02_k/k_d_02_2022.csv"
+# Styczeń 2023
+path3 = "./zad1-dane/2023_01_k/k_d_01_2023.csv"
+# Luty 2023
+path4 = "./zad1-dane/2023_02_k/k_d_02_2023.csv"
+```
+
+<br>
+
+```{r, echo=FALSE}
+df1 <- read.csv(path1, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN") , sep = ",", stringsAsFactors = FALSE)
+
+df2 <- read.csv(path2, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg","Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB", "Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN") , sep = ",", stringsAsFactors = FALSE)
+
+df3 <- read.csv(path3, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg","Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB", "Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN") , sep = ",", stringsAsFactors = FALSE)
+
+df4 <- read.csv(path4, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg","Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB", "Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN") , sep = ",", stringsAsFactors = FALSE)
+
+```
+
+ 
+```{r, echo=FALSE, results='hide', warning=FALSE}
+df_merged <- rbind(df1, df2, df3, df4) 
+df_merged
+```
+
+Pobrane i uporządkowane dane do zadania 1 zapisano w pliku CSV o nazwie ferie.csv.
+```{r}
+write.csv(df_merged, "ferie.csv", row.names = FALSE)
+```
+
+Do danych dodano nową kolumnę 'Data' w formacie rok-miesiąc-dzień. Fragment tabeli z danymi pokazano poniżej:
+```{r, echo=FALSE}
+df_merged$Data <- as.Date(paste(df_merged$Rok, df_merged$Miesiac, df_merged$Dzien, sep = "-"), format = "%Y-%m-%d")
+head(df_merged)
+```
+<br>
+
+### Problem 1a - Maksymalne dobowe temperatury
+
+Do realizacji tego podpunktu wybrano następujace miejscowości: Radziechowy, Jarocin oraz Olecko.
+
+Olecko – miasto w północno-wschodniej części Polski w województwie warmińsko-mazurskim, powiecie oleckim, nad rzeką Legą i Jeziorem Oleckim Wielkim na Mazurach.
+
+Jarocin – miasto w środkowo-zachodniej Polsce, w województwie wielkopolskim, siedziba powiatu jarocińskiego i gminy Jarocin.
+
+Radziechowy – wieś w Polsce położona w województwie śląskim, w powiecie żywieckim, w gminie Radziechowy-Wieprz.
+
+
+```{r, echo=FALSE,}
+locations <- c("RADZIECHOWY", "JAROCIN", "OLECKO")
+data <- df_merged %>% select(Lokalizacja, Data, Tmax) %>% filter(Lokalizacja %in% locations)
+```
+
+Kolejnym etapem był podział zbioru danych na te z 2022 i 2023 roku.
+Przygotowane do analizy ramki danych wyglądają następująco: 
+
+```{r, echo=FALSE}
+# Wyodrębniamy tylko daty z roku 2022
+data_2022 <- subset(data, format(data$Data, "%Y") == "2022")
+data_2022
+
+# Wyodrębniamy tylko daty z roku 2023
+data_2023 <- subset(data, format(data$Data, "%Y") == "2023")
+data_2023
+```
+
+<br> 
+
+##### Wykres pudełkowy dla temperatur podczas ferii zimowych - styczeń i luty rok 2022
+
+```{r, echo=FALSE}
+ggplot(data_2022, aes(x=Lokalizacja, y=Tmax)) +
+  geom_boxplot() +
+  labs(x = "Lokalizacja stacji badawczej", y = "Maksymalna dobowa temperatura [°C]") +
+  ggtitle("Ferie zimowe - styczeń i luty 2022") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Wartość średnia, maksymalna i minimalna dla maksymalnych temperatur dla wybranych miejscowości:
+
+```{r, echo=FALSE}
+temp_param_2022 <- data_2022 %>%
+  select(Lokalizacja, Data, Tmax) %>%
+  filter(Lokalizacja %in% locations) %>%
+  group_by(Lokalizacja) %>%
+  summarize(mean_temp = round(mean(Tmax), digits=1),
+            max_temp = max(Tmax),
+            min_temp = min(Tmax),
+            amplituda = max_temp - min_temp)
+temp_param_2022
+```
+
+Rozkład kwartylowy w Jarocinie:
+```{r, echo = FALSE}
+data_2022 %>% filter(Lokalizacja=="JAROCIN") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_2022_Jarocin
+data_2022_Jarocin <- as.numeric(data_2022_Jarocin$Tmax)
+res<-quantile(data_2022_Jarocin, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+Temperatura w przedziale od -2.9 °C (0 percentyl) do 10.9 °C (100 percentyl). 
+Mediana wynosi 4.5 °C
+
+Rozkład kwartylowy w Olecku:
+```{r, echo = FALSE}
+data_2022 %>% filter(Lokalizacja=="OLECKO") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_2022_Olecko
+data_2022_Olecko <- as.numeric(data_2022_Olecko$Tmax)
+res<-quantile(data_2022_Olecko, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+Temperatura w przedziale od -2.2 °C do 8 °C. 
+Mediana wynosi 2.4 °C
+
+Rozkład kwartylowy w Radziechowach:
+```{r, echo= FALSE}
+data_2022 %>% filter(Lokalizacja=="RADZIECHOWY") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_2022_Radziechowy
+data_2022_Radziechowy <- as.numeric(data_2022_Radziechowy$Tmax)
+res<-quantile(data_2022_Radziechowy, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+Temperatury w przedziale od -3.9°C do 12.8°C. 
+Mediana wynosi 4.4°C.
+
+<br>
+
+**WNIOSKI:**
+
+Najniższa średnia temperatura w okresie ferii w roku 2022 była kolejno w Olecku - 2.4°C,  Radziechowach - 4,4°C, Jarocinie - 4.5°C.
+
+Najwyższą dobową temperaturę odnotowano kolejno w Radziechowach - 12.8°C, Jarocinie - 10.9°C, Olecku - 8°C, najniższa zaś kolejno w Radziechowach - -3.9°C, Jarocinie - -2.9°C, Olecku - -2.2°C.
+
+Największa ampltudę temperatury w okresie ferii zanotowano kolejno w Radziechowach - 16.7°C, Jarocinie - 13.8°C, Olecku - 10.2°C
+
+<br>
+
+##### Wykres pudełkowy dla temperatur podczas ferii zimowych - styczeń i luty rok 2023
+
+```{r, echo=FALSE}
+ggplot(data_2023, aes(x=Lokalizacja, y=Tmax)) +
+  geom_boxplot() +
+  labs(x = "Lokalizacja stacji badawczej", y = "Maksymalna dobowa temperatura [°C]") +
+  ggtitle("Ferie zimowe - styczeń i luty 2023")  +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Wartość średnia, maksymalna i minimalna tempetratury
+
+```{r, echo=FALSE}
+temp_param_2023 <- data_2023 %>%
+  select(Lokalizacja, Data, Tmax) %>%
+  filter(Lokalizacja %in% locations) %>%
+  group_by(Lokalizacja) %>%
+  summarize(mean_temp = round(mean(Tmax), digits=1),
+            max_temp = max(Tmax),
+            min_temp = min(Tmax),
+            amplituda = max_temp - min_temp)
+
+
+temp_param_2023
+```
+
+Rozkład kwartylowy w Jarocinie:
+```{r, echo = FALSE}
+data_2023 %>% filter(Lokalizacja=="JAROCIN") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_2023_Jarocin
+data_2023_Jarocin <- as.numeric(data_2023_Jarocin$Tmax)
+res<-quantile(data_2023_Jarocin, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+Temperatura w przedziale od -2.1 °C (0 percentyl) do 14.3 °C (100 percentyl). 
+Mediana wynosi 4.4 °C
+
+Rozkład kwartylowy w Olecku:
+```{r, echo = FALSE}
+data_2023 %>% filter(Lokalizacja=="OLECKO") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_2023_Olecko
+data_2023_Olecko <- as.numeric(data_2023_Olecko$Tmax)
+res<-quantile(data_2023_Olecko, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+Temperatura w przedziale od -2.5 °C do 14.00 °C. 
+Mediana wynosi 2.2 °C
+
+Rozkład kwartylowy w Radziechowach:
+```{r, echo= FALSE}
+data_2023 %>% filter(Lokalizacja=="RADZIECHOWY") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_2023_Radziechowy
+data_2023_Radziechowy <- as.numeric(data_2023_Radziechowy$Tmax)
+res<-quantile(data_2023_Radziechowy, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+Temperatura w przedziale od -5.5 °C do 15.3 °C. 
+Mediana wynosi 5.3 °C
+
+
+**WNIOSKI:**
+
+Najniższa średnia temperatura w okresie ferii w roku 2022 była kolejno w Olecku - 2.2°C, Jarocinie - 4.4°C, Radziechowach - 5.3°C.
+
+Najwyższą dobową temperaturę odnotowano kolejno w Radziechowach - 15.3°C, Jarocinie - 14.3°C, Olecku - 14°C, najniższa zaś kolejno w Radziechowach - -5.5°C, Olecku - -2.5°C, Jarocinie - -2.1°C.
+
+Największa ampltudę temperatury w okresie ferii zanotowano kolejno w Radziechowach - 20.8°C, Olecku - 16.5°C, Jarocinie - 16.4°C.
+
+<br>
+<br>
+
+### Porównanie temperatur w roku 2022 i 2023
+
+<br>
+
+#### Jarocin
+```{r, echo = FALSE}
+ggplot() +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="JAROCIN", Rok == '2023', Miesiac == '1')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'red')) +
+  
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="JAROCIN", Rok == '2022', Miesiac == '1')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'blue')) +
+  
+  labs(x = "Dzień", y = "Maksymalna dobowa temperatura [°C]") +
+  ggtitle("Porówanie temperatury w Jarocinie - styczeń 2022/23") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values=c("red", "blue"), labels=c("Rok 2022", "Rok 2023" ))
+
+
+ggplot() +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="JAROCIN", Rok == '2023', Miesiac == '2')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'red')) +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="JAROCIN", Rok == '2022', Miesiac == '2')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'blue')) +
+  labs(x = "Dzień", y = "Maksymalna dobowa temperatura [°C]") +
+  ggtitle("Porówanie temperatury w Jarocinie - luty 2022/23") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values=c("red", "blue"), labels=c("Rok 2022", "Rok 2023" ))
+
+```
+
+<br>
+
+#### Olecko
+
+```{r, echo = FALSE}
+ggplot() +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="OLECKO", Rok == '2023', Miesiac == '1')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'red')) +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="OLECKO", Rok == '2022', Miesiac == '1')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'blue')) +
+  labs(x = "Dzień", y = "Maksymalna dobowa temperatura [°C]") +
+  ggtitle("Porówanie temperatury w Olecku - styczeń 2022/23") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values=c("red", "blue"), labels=c("Rok 2022", "Rok 2023" ))
+
+
+ggplot() +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="OLECKO", Rok == '2023', Miesiac == '2')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'red')) +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="OLECKO", Rok == '2022', Miesiac == '2')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'blue')) +
+  labs(x = "Dzień", y = "Maksymalna dobowa temperatura [°C]") +
+  ggtitle("Porówanie temperatury w Olecku - luty 2022/23") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values=c("red", "blue"), labels=c("Rok 2022", "Rok 2023" ))
+```
+
+<br>
+
+#### Radziechowice
+
+```{r, echo = FALSE}
+
+ggplot() +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="RADZIECHOWY", Rok == '2023', Miesiac == '1')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'red')) +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="RADZIECHOWY", Rok == '2022', Miesiac == '1')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'blue')) +
+  labs(x = "Dzień", y = "Maksymalna dobowa temperatura [°C]") +
+  ggtitle("Porówanie temperatury w Radziechowicach - styczeń 2022/23") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values=c("red", "blue"), labels=c("Rok 2022", "Rok 2023" ))
+
+
+ggplot() +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="RADZIECHOWY", Rok == '2023', Miesiac == '2')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'red')) +
+  geom_line(data=df_merged %>% select(Lokalizacja, Rok, Miesiac, Dzien, Tmax) %>% filter(Lokalizacja=="RADZIECHOWY", Rok == '2022', Miesiac == '2')  %>%
+  arrange(Dzien), aes(x=Dzien, y=Tmax, col = 'blue')) +
+  labs(x = "Dzień", y = "Maksymalna dobowa temperatura [°C]") +
+  ggtitle("Porówanie temperatury w Radziechowicach - luty 2022/23") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values=c("red", "blue"), labels=c("Rok 2022", "Rok 2023" ))
+
+
+```
+
+**WNIOSKI**
+Analizując otrzymane wykresy widać, że na przestrzeni dwóch lat (2022-2023) średnia dobowa temperatura w styczniu 2023 była wyższa niż w 2022 roku w miejscowościach Radziechowice oraz Jarocin. W przypadku lutego do połowy miesiąca wyższa średnia dobowa temperatura była notowana w roku 2022 dla wszystkich miejscowości.
+
+<br>
+
+#### Maksymalne dobowe temperatury - sumaryczne zestawienie ferii 2022/2023
+
+Na poniższym wykresie pudełkowym zestawiono ze sobą wszystkie maksymalne temperatury zebrane w okresie ferii zimowych dla opisywanych wyżej miejscowości w roku 2022/23 (okres 4 miesięcy) . W tym przypadku zastosowano inne narzędzie do rysowania, mianowicie podstawową funkcję z pakietu R pozwalającą na rysowanie wykresów pudełkowych - boxplot.
+
+```{r, echo=FALSE}
+boxplot(Tmax ~ Lokalizacja, data = data,
+        main = "Ferie zimowe - 2022 i 2023",
+        ylab = "Temperatury [°C]", xlab = "Lokalizacja stacji badawczej")
+
+grid()
+```
+
+Wartość średnia, maksymalna i minimalna tempetratury
+```{r, echo=FALSE}
+temp_param <- data %>%
+  select(Lokalizacja, Data, Tmax) %>%
+  filter(Lokalizacja %in% locations) %>%
+  group_by(Lokalizacja) %>%
+  summarize(mean_temp = round(mean(Tmax), digits=1),
+            max_temp = max(Tmax),
+            min_temp = min(Tmax),
+            amplituda = max_temp - min_temp)
+
+
+temp_param
+```
+
+Rozkład kwartylowy w Jarocinie:
+```{r, echo = FALSE}
+data %>% filter(Lokalizacja=="JAROCIN") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_Jarocin
+data_Jarocin <- as.numeric(data_Jarocin$Tmax)
+res<-quantile(data_Jarocin, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+Temperatura oscyluje od -2.9 °C do 14.3 °C. 
+Mediana wynosi 4.4 °C
+
+Rozkład kwartylowy w Olecku:
+```{r, echo = FALSE}
+data %>% filter(Lokalizacja=="OLECKO") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_Olecko
+data_Olecko <- as.numeric(data_Olecko$Tmax)
+res<-quantile(data_Olecko, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+Temperatura oscyluje od -2.5 °C do 14.00 °C. 
+Mediana wynosi 2.3 °C
+
+Rozkład kwartylowy w Radziechowach:
+```{r, echo= FALSE}
+data %>% filter(Lokalizacja=="RADZIECHOWY") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_Radziechowy
+data_Radziechowy <- as.numeric(data_Radziechowy$Tmax)
+res<-quantile(data_Radziechowy, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+Temperatury oscyluje od -5.5°C do 15.3°C. 
+Mediana wynosi 4.6°C.
+
+<br>
+
+**WNIOSKI:**
+
+Najniższa średnia temperatura w okresie ferii w roku 2022 była kolejno w Olecku - 2.3°C, Jarocinie - 4.4°C, Radziechowach - 4.6°C.
+
+Najwyższą dobową temperaturę odnotowano kolejno w Radziechowach - 15.3°C, Jarocinie - 14.3°C, Olecku - 14°C, najniższa zaś kolejno w Radziechowach - -5.5°C, Jarocinie - -2.9°C, Olecku - -2.5°C. 
+
+Największa ampltudę temperatury w okresie ferii zanotowano kolejno w Radziechowach - 20.8°C, Olecku - 16.5°C, Jarocinie - 16.4°C.
+
+Największy rozstęp dla maksymalnych temperatur został odnotowany w Radziechowach : 6.3°C, najmniejszy z kolei w Olecku: 4.45°C.
+
+<!-- Odpowiednie posortowanie po miejscowościach: -->
+```{r include=FALSE}
+data %>% arrange(Lokalizacja) -> data
+data_2022 %>% arrange(Lokalizacja) -> data_2022
+data_2023 %>% arrange(Lokalizacja) -> data_2023
+data
+```
+
+<br>
+
+### Problem 1b - Wahania maksymalnej dobowej temperatury
+
+#### Ferie zimowe - styczeń i luty rok 2022
+
+W poniższej tabeli zestawiono różnicę maksymalnej dobowej temperatury na przestrzeni kolejnych dni w okresie ferii zimowych w roku 2022 dla poszczególnych miejscowości.
+```{r, echo=FALSE}
+roznica_temperatury_2022 = abs(data_2022$Tmax - lag(data_2022$Tmax))
+data_2022$Tdiff <- roznica_temperatury_2022
+data_2022[60,4]  <- NA
+data_2022[112,4] <- NA
+data_2022
+```
+
+Wykres pudełkowy przedstawiający wartość bezwględną zmian temperatur względem dnia poprzedniego dla danej miejscowości w roku 2022 przedstawiono poniżej: 
+
+```{r echo=FALSE}
+boxplot(Tdiff ~ Lokalizacja, data = data_2022,
+        main = "Dzienne różnice temperatur - ferie zimowe 2022",
+        ylab = "Różnica temperatury [°C]", xlab = "Lokalizacja stacji badawczej")
+grid()
+```
+
+
+Rozkład kwartylowy w Jarocinie:
+
+```{r, echo= FALSE}
+data_2022 %>% filter(Lokalizacja=="JAROCIN") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_2022_Jarocin_diff
+data_2022_Jarocin_diff <- as.numeric(data_2022_Jarocin_diff$Tdiff)
+res<-quantile(data_2022_Jarocin_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+res
+```
+Temperatura w przedziale od 0°C (0 percentyl) do 4.6°C (100 percentyl). 
+Mediana temperatur wynosi 1 °C
+
+Rozkład kwartylowy w Olecku:
+```{r, echo= FALSE}
+data_2022 %>% filter(Lokalizacja=="OLECKO") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_2022_Olecko_diff
+data_2022_Olecko_diff <- as.numeric(data_2022_Olecko_diff$Tdiff)
+res<-quantile(data_2022_Olecko_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+res
+```
+Temperatura w przedziale od 0°C do 6.8°C. 
+Mediana wynosi 1.4°C
+
+
+
+Rozkład kwartylowy w Radziechowach:
+```{r, echo= FALSE}
+data_2022 %>% filter(Lokalizacja=="RADZIECHOWY") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_2022_Radziechowy_diff
+data_2022_Radziechowy_diff <- as.numeric(data_2022_Radziechowy_diff$Tdiff)
+res<-quantile(data_2022_Radziechowy_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+round(res, digits=2)
+```
+Temperatura w przedziale od 0°C do 5.9°C. 
+Mediana wynosi 1.9°C
+
+**WNIOSKI:**
+
+Najwyższą dobową różnicę temperatur odnotowano kolejno w Olecku - 6.8°C, Radziechowy 5.9°C, Jarocinie - 4.6°C, najniższa zaś w każdym z miast wynosiła 0°C.
+
+<br>
+
+#### Ferie zimowe - styczeń i luty rok 2023
+
+W poniższej tabeli zestawiono różnicę maksymalnej dobowej temperatury na przestrzeni kolejnych dni w okresie ferii zimowych w roku 2023 dla poszczególnych miejscowości.
+
+```{r, echo=FALSE}
+roznica_temperatury_2023 = abs(data_2023$Tmax - lag(data_2023$Tmax))
+data_2023$Tdiff <- roznica_temperatury_2023
+data_2023[60,4]  <- NA
+data_2023[119,4] <- NA
+data_2023
+```
+
+W poniższej tabeli zestawiono różnicę maksymalnej dobowej temperatury na przestrzeni kolejnych dni w okresie ferii zimowych w roku 2023.
+```{r, echo=FALSE}
+boxplot(Tdiff ~ Lokalizacja, data = data_2023,
+        main = "Różnica dziennej temperatury - ferie zimowe 2023",
+        ylab = "Różnica temperatury [°C]", xlab = "Lokalizacja stacji badawczej")
+grid()
+```
+
+
+Rozkład kwartylowy w Jarocinie:
+```{r, echo= FALSE}
+data_2023 %>% filter(Lokalizacja=="JAROCIN") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_2023_Jarocin_diff
+data_2023_Jarocin_diff <- as.numeric(data_2023_Jarocin_diff$Tdiff)
+res<-quantile(data_2023_Jarocin_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+round(res, digits=2) 
+#res
+```
+Temperatura w przedziale od 0°C (0 percentyl) do 4.5°C (100 percentyl). 
+Mediana wynosi 1.4°C
+
+Rozkład kwartylowy w Olecku:
+```{r, echo= FALSE}
+data_2023 %>% filter(Lokalizacja=="OLECKO") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_2023_Olecko_diff
+data_2023_Olecko_diff <- as.numeric(data_2023_Olecko_diff$Tdiff)
+res<-quantile(data_2023_Olecko_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+res
+```
+Temperatura w przedziale od 0°C do 7.7°C. 
+Mediana wynosi 1.2°C
+
+
+
+Rozkład kwartylowy w Radziechowach:
+```{r, echo= FALSE}
+data_2023 %>% filter(Lokalizacja=="RADZIECHOWY") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_2023_Radziechowy_diff
+data_2023_Radziechowy_diff <- as.numeric(data_2023_Radziechowy_diff$Tdiff)
+res<-quantile(data_2023_Radziechowy_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+round(res, digits=2) 
+```
+Temperatura w przedziale od 0°C do 6.2°C. 
+Mediana wynosi 1.45°C
+
+**WNIOSKI:**
+
+Najwyższą dobową różnicę temperatur odnotowano kolejno w Olecku - 7.7, Radziechowach - 6.2°C, Jarocinie - 4.5°C, najniższa zaś w kazdym z miast wynosiła 0°C.
+
+
+## Ferie zimowe - zestawienie 2022 i 2023 roku
+W poniższej tabeli zestawiono różnicę maksymalnej dobowej temperatury na przestrzeni kolejnych dni w okresie ferii zimowych w latach 2022/2023.
+```{r, echo=FALSE}
+roznica_temperatury = abs(data$Tmax - lag(data$Tmax))
+data$Tdiff <- roznica_temperatury
+
+data[60,4] <- NA
+data[119,4] <- NA
+data[171,4] <- NA
+data[230,4] <- NA
+data[289,4] <- NA
+data#[c(110:114),]
+```
+
+W poniższej tabeli zestawiono różnicę maksymalnej dobowej temperatury na przestrzeni kolejnych dni w okresie ferii zimowych w roku 2022/23. 
+```{r, echo=FALSE}
+boxplot(Tdiff ~ Lokalizacja, data = data,
+        main = "Różnica dziennej temperatury dla trzech miast",
+        ylab = "Różnica temperatury [°C]", xlab = "Lokalizacja stacji badawczej")
+
+```
+Rozkład kwartylowy w Jarocinie:
+```{r, echo= FALSE}
+data %>% filter(Lokalizacja=="JAROCIN") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_Jarocin_diff
+data_Jarocin_diff <- as.numeric(data_Jarocin_diff$Tdiff)
+res<-quantile(data_Jarocin_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+res
+```
+Temperatura w przedziale od 0°C do 4.6°C. 
+Mediana wynosi 1.3°C
+
+Rozkład kwartylowy w Olecku:
+```{r, echo= FALSE}
+data %>% filter(Lokalizacja=="OLECKO") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_Olecko_diff
+data_Olecko_diff <- as.numeric(data_Olecko_diff$Tdiff)
+res<-quantile(data_Olecko_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+res
+```
+Temperatura w przedziale od 0°C do 7.7°C. 
+Mediana wynosi 1.3°C
+
+
+Rozkład kwartylowy w Radziechowach:
+```{r, echo= FALSE}
+data %>% filter(Lokalizacja=="RADZIECHOWY") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_Radziechowy_diff
+data_Radziechowy_diff <- as.numeric(data_Radziechowy_diff$Tdiff)
+res<-quantile(data_Radziechowy_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+round(res, digits=2)
+```
+Temperatura w przedziale od 0°C do 6.2°C. 
+Mediana wynosi 1.65°C
+
+
+**WNIOSKI:**
+
+Najwyższą dobową różnicę temperatur odnotowano kolejno w Olecku 7.7, Radziechowach - 6.2°C,  Jarocinie - 4.6°C, najniższa zaś w kazdym z miast wynosiła 0°C.
+
+## Zadanie 1b
+
+### Treść
+Proszę dokładniej zbadać rozkład wahań temperatury „z dnia na dzień” w jednej wybranej lokalizacji i ocenić na ile odpowiednim modelem będzie rozkład normalny. W tym celu proszę np. oszacować parametry rozkładu normalnego i porównać graficznie histogram z funkcją gęstości rozkładu normalnego o oszacowanych parametrach.Następnie krótko ocenić sensowność następującej prostej prognozy pogody: „jutro będzie podobnie ciepło jak dziś”. Zdefiniować błąd takiej prognozy i przeanalizować wielkość tego błędu.
+
+
+### Rozwiązanie
+
+#### Dokładniejsza analiza
+Do dokładniejszej analizy rozkładu wahań temperatury wybrano miasto Jarocin. Histogram wahań pokazano poniżej. Na osi x naniesiono wartości różnic temperatur między kolejnymi dniami.
+```{r, echo=FALSE}
+data_diff <- data %>% filter(Lokalizacja == "JAROCIN")
+hist(data_diff$Tdiff, prob=TRUE, breaks = 20, col = "lightblue", main = "Histogram wahań temperatury",xlab="Różnica temperatury")
+```
+
+Oszacowano parametry rozkładu normalnego
+
+```{r, echo=FALSE}
+data_diff_num <- as.numeric(data_diff$Tdiff)
+mean_val <- mean(data_diff_num, na.rm = TRUE)
+sd_val <- sd(data_diff_num, na.rm = TRUE)
+mean_str <- paste0("Wartość średnia: ", round(mean_val, 3))
+sd_str <- paste0("Odchylenie standardowe: ", round(sd_val, 3))
+print(mean_str)
+print(sd_str)
+```
+
+Histogram wahań temperatur wraz z naniesionym rozkładem normalnym o wyznaczonych parametrach przedstawiono poniżej:
+
+```{r, echo=FALSE}
+x <- seq(min(na.omit(data_diff_num[-1])), max(na.omit(data_diff_num[-1][is.finite(data_diff_num[-1])])), length = 100)
+
+#data_diff
+#data_diff
+#plot(x)
+
+y <- dnorm(x, mean_val, sd_val)
+hist(data_diff$Tdiff, prob=TRUE, breaks = 20, col = "lightblue", main = "Histogram wahań temperatury", xlab="Różnica" )
+lines(x, y, col = "red", lwd = 2)
+```
+
+**WNIOSKI**
+
+Analizując otrzymany wykres widać, że rozkład normalny nie jest dobrym narzędziem do modelowania danych różnic temperatur na przestrzeni badanej próbki czasowej.
+
+Zgodnie z rozkładem normalnym widać, że najczęstsze różnice temperatur wynoszą około 1.5°C, co nie jest zgodne z danymi ukazanymi na wyskalowanym w częstości wystąpień histogramie, gdzie najczęstsza różnica wynosi okoła 0.5°C. Fakt ten może wynikać z małej ilości danych, które uwzględniono przy analizie.
+
+<br>
+
+#### Prognoza pogody
+
+Posługując się jednak rozkładem normalnym można oszacować prognozę pogody na kolejny dzień. Zgodnie z regułą 3 sigm na 99,7% temperatura następnego dnia nie będzie mniejsza od `r round(mean_val-3*sd_val,2)`°C i większa od `r round(mean_val+3*sd_val,2)` °C.
+
+Do przewidywania pogody można również sie posłużyć rozkładem kwartylowym różnic temperatur w Jarocinie:
+```{r, echo= FALSE}
+data %>% filter(Lokalizacja=="JAROCIN") %>% select(Tdiff) %>% arrange(desc(Tdiff)) -> data_Jarocin_diff
+data_Jarocin_diff <- as.numeric(data_Jarocin_diff$Tdiff)
+res<-quantile(data_Jarocin_diff, probs = c(0,0.25,0.5,0.75,1), na.rm=TRUE)
+res
+```
+
+Pierwszy kwartyl (Q1) wynosi 0.5 - oznacza to, że 25% najmniejszych wartości w tym zbiorze wynosi 0.5 lub mniej.
+
+Drugi kwartyl (Q2) wynosi 1.3 - oznacza to, że mediana dla tego zbioru danych wynosi 1.3, czyli 50% wartości mieści się w przedziale od 0.5 do 1.3 i 50% wartości mieści się w przedziale od 1.3 do 4.6.
+
+Trzeci kwartyl (Q3) wynosi 2.5 - oznacza to, że 25% największych wartości w tym zbiorze wynosi 2.5 lub więcej.
+
+Warto zauważyć, że rozpiętość między Q1 a Q3, czyli tzw. rozstęp ćwiartkowy (interquartile range, IQR), wynosi 2.0, co oznacza, że 50% wartości mieści się w tym przedziale.
+
+Dzięki rozkładowi kwartylowemu możemy szacować z jakim prawdopodobieństwem temperatura następnego dnia będzie różnić się od temperatury z dnia poprzedniego. 
+
+Można pokusić się o stwierdzenie, ze dnia następnego temperatura najprawdopodobniej będzie się róznić od temperatury dnia poprzedniego o 1,3°C
+<br>
+<br>
+<br>
+
+
+# Problem 2
+Problem drugi polegał na sprawdzeniu, czy na przestrzeni lat widoczny jest zjawisko globalnego ocieplenia.
+
+Zjawisko globalnego ocieplenia jest to proces, w którym zwiększające się ilości gazów cieplarnianych, takich jak dwutlenek węgla, magazunują ciepło w atmosferze ziemskiej, powodując wzrost temperatury powierzchniowej. Efektem globalnego ocieplenia są zmiany klimatyczne, takie jak wzrost poziomu morza, ekstremalne zjawiska pogodowe i zagrożenia dla różnych ekosystemów i gatunków. Wielu naukowców uważa, że główną przyczyną globalnego ocieplenia jest działalność człowieka, w szczególności emisja gazów cieplarnianych związana z przemysłem i transportem. 
+
+### Treść
+Wykorzystując dostępne dane pogodowe z problemu 1 (np. z jednej lokalizacji, ale z wielu lat) proszę wyszukać te, które (do wyboru):
+a) świadczą za ociepleniem klimatu,
+b) świadczą przeciw ociepleniu klimatu,
+
+,a następnie przygotować krótką prezentację (1 lub 2 slajdy) mającą przekonać słuchaczy, że ocieplenie klimatu jest widoczne/niewidoczne w danych pomiarowych.
+
+
+### Rozwiązanie
+
+**Argument 1**
+
+Już na podstawie pierwszej części projektu jesteśmy w stanie zauważyć niewielki wzrost średniej wartości temperatury na przestrzeni roku w okresie ferii zimowych. Mianowicie analizując poniższe tabele z poprzedniego zadania widać, że średnia temperatura w styczniu i lutym 2023 roku w porównaniu do roku poprzedniego wzrostła o 0.4°C dla Radziechowa, 0.1°C dla Olecka i 0.1°C dla Jarocina.
+
+Średnia temperatura powietrza w okresie ferii zimowych - rok 2022
+```{r, echo=FALSE}
+temp_param_2022 %>% select(Lokalizacja, mean_temp)
+```
+Średnia temperatura powietrza w okresie ferii zimowych - rok 2023
+```{r, echo=FALSE}
+temp_param_2023 %>% select(Lokalizacja, mean_temp)
+```
+
+```{r, echo=FALSE}
+temp <- temp_param_2023$mean_temp - temp_param_2022$mean_temp
+#temp
+```
+
+Nieznaczny wzrost średniej temperatury na przestrzeni zaledwie roku może świadczyć o pewnym ociepleniu klimatu.
+
+
+**Argument 2**
+
+W tej części dokonano analizy zmian średnich temperatur w okresie 1951-2000 dla miejscowości Szepietowo położonej w województwie Podlaskim. 
+
+```{r, echo=FALSE,warning=FALSE,message = FALSE}
+path1951 = "./zad2-dane/k_d_1951.csv"
+path1952 = "./zad2-dane/k_d_1952.csv"
+path1953 = "./zad2-dane/k_d_1953.csv"
+path1954 = "./zad2-dane/k_d_1954.csv"
+path1955 = "./zad2-dane/k_d_1955.csv"
+path1956 = "./zad2-dane/k_d_1956.csv"
+path1957 = "./zad2-dane/k_d_1957.csv"
+path1958 = "./zad2-dane/k_d_1958.csv"
+path1959 = "./zad2-dane/k_d_1959.csv"
+
+path1960 = "./zad2-dane/k_d_1960.csv"
+path1961 = "./zad2-dane/k_d_1961.csv"
+path1962 = "./zad2-dane/k_d_1962.csv"
+path1963 = "./zad2-dane/k_d_1963.csv"
+path1964 = "./zad2-dane/k_d_1964.csv"
+path1965 = "./zad2-dane/k_d_1965.csv"
+path1966 = "./zad2-dane/k_d_1966.csv"
+path1967 = "./zad2-dane/k_d_1967.csv"
+path1968 = "./zad2-dane/k_d_1968.csv"
+path1969 = "./zad2-dane/k_d_1969.csv"
+
+path1970 = "./zad2-dane/k_d_1970.csv"
+path1971 = "./zad2-dane/k_d_1971.csv"
+path1972 = "./zad2-dane/k_d_1972.csv"
+path1973 = "./zad2-dane/k_d_1973.csv"
+path1974 = "./zad2-dane/k_d_1974.csv"
+path1975 = "./zad2-dane/k_d_1975.csv"
+path1976 = "./zad2-dane/k_d_1976.csv"
+path1977 = "./zad2-dane/k_d_1977.csv"
+path1978 = "./zad2-dane/k_d_1978.csv"
+path1979 = "./zad2-dane/k_d_1979.csv"
+
+path1980 = "./zad2-dane/k_d_1980.csv"
+path1981 = "./zad2-dane/k_d_1981.csv"
+path1982 = "./zad2-dane/k_d_1982.csv"
+path1983 = "./zad2-dane/k_d_1983.csv"
+path1984 = "./zad2-dane/k_d_1984.csv"
+path1985 = "./zad2-dane/k_d_1985.csv"
+path1986 = "./zad2-dane/k_d_1986.csv"
+path1987 = "./zad2-dane/k_d_1987.csv"
+path1988 = "./zad2-dane/k_d_1988.csv"
+path1989 = "./zad2-dane/k_d_1989.csv"
+
+path1990 = "./zad2-dane/k_d_1990.csv"
+path1991 = "./zad2-dane/k_d_1991.csv"
+path1992 = "./zad2-dane/k_d_1992.csv"
+path1993 = "./zad2-dane/k_d_1993.csv"
+path1994 = "./zad2-dane/k_d_1994.csv"
+path1995 = "./zad2-dane/k_d_1995.csv"
+path1996 = "./zad2-dane/k_d_1996.csv"
+path1997 = "./zad2-dane/k_d_1997.csv"
+path1998 = "./zad2-dane/k_d_1998.csv"
+path1999 = "./zad2-dane/k_d_1999.csv"
+
+path2000 = "./zad2-dane/k_d_2000.csv"
+```
+
+```{r, echo=FALSE}
+df1951 <- read.csv(path1951, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1952 <- read.csv(path1952, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1953 <- read.csv(path1953, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1954 <- read.csv(path1954, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1955 <- read.csv(path1955, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1956 <- read.csv(path1956, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1957 <- read.csv(path1957, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1958 <- read.csv(path1958, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1959 <- read.csv(path1959, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+
+df1960 <- read.csv(path1960, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1961 <- read.csv(path1961, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1962 <- read.csv(path1962, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1963 <- read.csv(path1963, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1964 <- read.csv(path1964, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1965 <- read.csv(path1965, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1966 <- read.csv(path1966, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1967 <- read.csv(path1967, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1968 <- read.csv(path1968, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1969 <- read.csv(path1969, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+
+df1970 <- read.csv(path1970, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1971 <- read.csv(path1971, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1972 <- read.csv(path1972, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1973 <- read.csv(path1973, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1974 <- read.csv(path1974, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1975 <- read.csv(path1975, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1976 <- read.csv(path1976, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1977 <- read.csv(path1977, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1978 <- read.csv(path1978, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1979 <- read.csv(path1979, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+
+df1980 <- read.csv(path1980, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1981 <- read.csv(path1981, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1982 <- read.csv(path1982, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1983 <- read.csv(path1983, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1984 <- read.csv(path1984, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1985 <- read.csv(path1985, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1986 <- read.csv(path1986, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1987 <- read.csv(path1987, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1988 <- read.csv(path1988, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1989 <- read.csv(path1989, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+
+df1990 <- read.csv(path1990, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1991 <- read.csv(path1991, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1992 <- read.csv(path1992, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1993 <- read.csv(path1993, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1994 <- read.csv(path1994, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1995 <- read.csv(path1995, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1996 <- read.csv(path1996, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1997 <- read.csv(path1997, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1998 <- read.csv(path1998, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+df1999 <- read.csv(path1999, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+
+df2000 <- read.csv(path2000, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg", "Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB","Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN"), sep = ",", stringsAsFactors = FALSE)
+```
+
+Zestawiono wszystkie dane wykorzystane w tej części projektu :
+```{r echo=FALSE}
+# df_all <-rbind(df1964,df1963,df1961,df1991,
+#                df1986,df1981,df1976,df1971,df1966, df1999,df1955,
+#                df2000,df1998)
+# df_all
+```
+
+```{r, echo=FALSE}
+df_all <-rbind(df1951, df1952, df1953, df1954, df1955, df1956, df1957, df1958, df1959,
+               df1960, df1961, df1962, df1963, df1964, df1965, df1966, df1967, df1968, df1969,
+               df1970, df1971, df1972, df1973, df1974, df1975, df1976, df1977, df1978, df1979,
+               df1980, df1981, df1982, df1983, df1984, df1985, df1986, df1987, df1988, df1989,
+               df1990, df1991, df1992, df1993, df1994, df1995, df1996, df1997, df1998, df1999,
+               df2000)
+
+
+df_all
+```
+
+
+```{r, echo=FALSE}
+# #zapisanie danych
+# write_csv(df_all, "zad2-all.csv")
+```
+
+
+```{r include=FALSE}
+# #dodanie kolumny data
+df_all$Data <- as.Date(paste(df_all$Rok, df_all$Miesiac, df_all$Dzien, sep = "-"), format = "%Y-%m-%d")
+```
+
+
+
+```{r echo=FALSE}
+#Graficzna prezentacja zmian temperatury na przestrzeni lat 1951-2000
+#Średnia temperatura na przestrzeni lat 1951-2000
+# tabela <- df_all %>% select(Lokalizacja, Data, Tmax, Tmin, Tavg, Rok, Miesiac) %>% filter(Lokalizacja == "SZEPIETOWO")
+# tabela %>% group_by(Rok) %>% summarize(AVG = mean(Tavg)) -> tabela1
+# tabela1
+```
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+# require(ggplot2)
+# 
+# ggplot(tabela1, aes(x=Rok, y=AVG)) +
+#   geom_point(size=2) +
+#   geom_smooth(method="lm", se=FALSE, color="red") +
+# labs(title="Średnia temperatura w ferie zimowe na przestrzeni lat", x="Rok", y="Średnia temperatura (°C)") +
+#   theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+```{r echo=FALSE, message=FALSE}
+# Do wykresu dodano linię trendu średnich temperatur w miejscowości Szepietowo na przestrzeni lat. Analiza jej przebieg można w spoób jednoznaczny stwierdzić, że wraz z biegiem czasu średnia temperatur wzrostała, co za tym idzie nastąpiło ocieplenie klimatu.
+# 
+# Równanie prostej regresji 
+# my_mod <- lm(AVG ~ Rok, tabela1)
+# my_coef <- coef(my_mod)
+# my_equation <- paste("y =",
+#                      coef(my_mod)[[1]],
+#                      "+",
+#                      coef(my_mod)[[2]],
+#                      "* x")
+# my_equation
+# Oznacza to, że w przeciągu 49 lat średnia temperatura otoczenia w Szepietowie w ciągu roku wzrosła o : 
+# `r #round(coef(my_mod)[[2]]*50,digits=2)`°C.
+```
+
+#### Graficzne prezentacjia zmian temperatury w sezonie ferii zimowych na przestrzeni lat 1951-2000**
+```{r echo=FALSE}
+#Średnia temperatura na przestrzeni lat 1951-2000
+tabela_ferie <- df_all %>% select(Lokalizacja, Data, Tmax, Tmin, Tavg, Rok, Miesiac) %>% filter(Lokalizacja == "SZEPIETOWO") %>% filter(between(as.numeric(Miesiac), 1, 2))
+tabela_ferie %>% group_by(Rok) %>% summarize(AVG = mean(Tavg)) -> tabela_ferie1
+#tabela_ferie1
+```
+
+```{r echo=FALSE}
+require(ggplot2)
+ggplot(tabela_ferie1, aes(x=Rok, y=AVG)) +
+  geom_point(size=2) +
+  geom_smooth(method="lm", se=FALSE, color="red") +
+  labs(title="Średnia temperatura w ferie zimowe na przestrzeni lat",x="Rok", y="Średnia temperatura (°C)") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Dodano linię trendu średnich temperatur, która potwierdza założoną hipotezę o ociepleniu klimetu na przestrzeni lat.
+
+Równanie prostej regresji jest następujące:
+
+```{r echo=FALSE}
+my_mod <- lm(AVG ~ Rok, tabela_ferie1)          # Estimate linear regression model
+my_coef <- coef(my_mod)            # Extract coefficients of model
+my_equation <- paste("y =",        # Extract equation of model
+                     coef(my_mod)[[1]],
+                     "+",
+                     coef(my_mod)[[2]],
+                     "* x")
+my_equation
+```
+
+Oznacza to, że w przeciągu niespełna 50 lat średnia temperatura otoczenia w Szepietowie przypadająca na miesiąc styczeń wzrosła aż o : `r round(coef(my_mod)[[2]]*50,digits=2)`°C.
+
+**WNIOSKI**
+
+Po zapoanianiu się z powyższymi argumentami i przeanalizwaniu zaprezentownych wykresów można stwierdzić, że średnia temperatura powietrza na przestrzni lat wzrosła, co świadczy o pogłębiającym się zjawisku globalnego ocieplenia.
+
+<br>
+<br>
+<br>
+
+# Problem 3 - Sygnał z detektora promieniowania gamma
+W zadaniu 3 na podstawie danych zapisanych w formie binarnej określających sygnał z detektora promieniowania gamma przeprowadzono 2 analizy czasów wystąpienia impulsów w celu określenia liczby impulsów oraz odstępów między sąsiednimi impulsami w wybranej jednostce czasu. 
+
+Częstotliowość próbkowania sygnału wynosi 50MHz.
+
+### Treść
+W dostępnym sygnale z detektora promieniowania gamma wyszukać impulsy i przeprowadzić analizę statystyczną czasów wystąpienia impulsów, w szczególności zbadać rozkłady: <br>
+1. liczby impulsów w wybranej jednostce czasu <br>
+2. odstępy między sąsiednimi impulsami. <br>
+
+### Rozwiązanie
+
+Na poczatku wczytano plik z danymi  do wektora, zaś do dalszych badań wykorzystano jedynie przedział [30000000,35000000]. Badany przedział wygląda następująco:
+```{r echo=FALSE}
+filename <- './zad3-dane/signal_50MHz.bin'
+zz <- file(filename, "rb")
+
+BajtowNaLiczbe = 4
+fsize = file.size(filename)
+LiczbaLiczb = fsize / BajtowNaLiczbe
+v<-readBin(zz, numeric(), size=BajtowNaLiczbe, endian="little", n=LiczbaLiczb)
+close(zz)
+
+```
+
+```{r include=FALSE}
+#plot(v[30000000:35000000])
+```
+
+
+<br>
+
+#### Analiza liczby impulsów w wybranej jednostce czasu
+Zdecydowano się przeanalizować liczbę impulsów dla chwili czasowej od 30000000 do 35000000, zatem okres czasu wynosił 5mln jednostek.
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+p <- v[30000000:35000000]
+l = length(p)
+x = c(1:l)
+dt <- data_frame(time = x, val = p)
+```
+
+```{r echo=FALSE}
+ggplot(dt,aes(y=val,x=time)) +geom_point(size=2) +
+ labs(x = "Jednostka czasu", y = "Wartość sygnału") +
+ ggtitle("Wykres impulsów")
+```
+
+```{r echo=FALSE}
+# obliczenie i wyświetlenie wartości szczytowej
+szczyt <- max(p)
+cat("Wartość szczytowa sygnału:", szczyt, "\n")
+
+# obliczenie i wyświetlenie wartości minimalnej
+minimum <- min(p)
+cat("Wartość minimalna sygnału:", minimum)
+```
+
+Przefiltrowany wykres sygnałów pokazano poniżej. Przyjęto wartość progową odróżniająca szumy od sygnałów na poziomie 0.02.
+
+```{r echo=FALSE}
+dt %>% filter(val>0.02) %>% ggplot(aes(y=val,x=time)) +geom_point(size=2) +labs(x = "Jednostka czasu", y = "Wartość sygnału")
+```
+
+Przy określania liczby impulsów założono, że w momencie pojawienia się impulsu nie bada się już wartości sygnału dla następnych 500 jednostek czasowych z uwagi na to, że będą one reprezentować wartości tego samego impulsu. Liczba sygnałów w wybranej jednostce czasu wynosiła zatem:
+
+```{r echo=FALSE}
+
+pp <- p
+count <- 0
+count_impuls <- vector()
+number <- 0
+
+for (i in 1:length(p))
+{
+  if(pp[i]>0.02)
+  {
+    count <- count + 1
+    #print(i) 
+    count_impuls <- c(count_impuls,i)
+    number <- number+1
+    for(j in i:(i+500))
+    {
+       pp[j] = 0.01
+    }
+    #i <- i+100
+  }
+}
+count
+```
+```{r include=FALSE}
+# count_impuls
+```
+
+```{r include=FALSE}
+count_1 = 0
+count_2 = 0
+count_3 = 0
+count_4 = 0
+count_5 = 0
+count_6 = 0
+count_7 = 0
+count_8 = 0
+count_9 = 0
+count_10 = 0
+
+
+# Liczymy liczę przypadków w danym przedziale
+
+for (i in 1:length(count_impuls))
+{
+  if (0 <= count_impuls[i] & count_impuls[i] < 0.5*10^6)
+  {
+    count_1 <- count_1 + 1
+  }
+  
+  else if (0.5*10^6 <= count_impuls[i] & count_impuls[i] < 10^6)
+  {
+    count_2 <- count_2 + 1
+  }
+  
+  else if (10^6 <= count_impuls[i] & count_impuls[i] < 1.5*10^6)
+  {
+    count_3 <- count_3 + 1
+  }
+  else if (1.5*10^6 <= count_impuls[i] & count_impuls[i] < 2*10^6)
+  {
+    count_4 <- count_4 + 1
+  }
+  else if (2*10^6 <= count_impuls[i] & count_impuls[i] < 2.5*10^6)
+  {
+    count_5 <- count_5 + 1
+  }
+
+  else if (2.5*10^6 <= count_impuls[i] & count_impuls[i] < 3*10^6)
+  {
+    count_6 <- count_6 + 1
+  }
+
+  else if (3*10^6 <= count_impuls[i] & count_impuls[i] < 3.5*10^6)
+  {
+    count_7 <- count_7 + 1
+  }
+  else if (3.5*10^6 <= count_impuls[i] & count_impuls[i] < 4*10^6)
+  {
+    count_8 <- count_8 + 1
+  }
+  else if (4*10^6 <= count_impuls[i] & count_impuls[i] < 4.5*10^6)
+  {
+    count_9 <- count_9 + 1
+  }
+  else
+  {
+    count_10 <- count_10 + 1
+  }
+}
+```
+
+```{r include=FALSE}
+count_1
+count_2
+count_3
+count_4
+count_5
+count_6 
+count_7 
+count_8 
+count_9 
+count_10
+```
+
+Dystrybucja liczby impulsów w czasie:
+```{r echo=FALSE}
+sum <- c(count_1)
+sum <- c(sum,count_2)
+sum <- c(sum,count_3)
+sum <- c(sum,count_4)
+sum <- c(sum,count_5)
+sum <- c(sum,count_6)
+sum <- c(sum,count_7)
+sum <- c(sum,count_8)
+sum <- c(sum,count_9)
+sum <- c(sum,count_10)
+sum
+```
+
+```{r echo=FALSE}
+# Wyliczenie sredniej i odchylenia standardowego
+mean <- mean(data_diff_num[-1], na.rm = TRUE)
+sd <- sd(data_diff_num[-1], na.rm = TRUE)
+
+
+x <- seq(min(data_diff_num[-1], na.rm = TRUE), max(data_diff_num[-1], na.rm = TRUE), length = 100)
+y <- dnorm(x, mean, sd)
+
+# Wykres
+barplot(sum, xlab = "Jednostka czasu", ylab = "Liczba impulsów", main = "Liczba impulsów w zależności od jednostki czasu")
+
+#  Rozkład normalny
+#lines(x, y, col = "red", lwd = 2)
+```
+
+Badany przedział, w którym odnotowano 22 impulsy podzielono na 10 mniejszych przedziałów. Zsumowano ile impulsów występowało w każdym z przedziałów. Następnie pogrupowano te przedziały względem liczby wystąpień impulsów. Poniższy wykres przedstawia tę zależność. 
+
+```{r echo=FALSE}
+wyniki <- table(sum)
+#barplot(wyniki, main="", xlab="Liczba impulsów", ylab="Częstość wystąpień danej liczby impulsów")
+#grid()
+
+```
+
+```{r eval=FALSE, include=FALSE}
+wyniki
+#max(wyniki)
+```
+
+```{r echo=FALSE}
+
+wek1=c(0,1,2,3,4)
+wek=c(1,1,5,1,2)
+
+barplot(wyniki/sum(wek), main="", xlab="Liczba impulsów", ylab="Częstość wystąpień danej liczby impulsów")
+
+# Wyliczenie sredniej i odchylenia standardowego
+mu <- mean(wek) # mean(data_diff_num[-1], na.rm = TRUE)
+sigma <- sd(wek) #sd(data_diff_num[-1], na.rm = TRUE)
+
+
+f <- function(wek1) dnorm(wek1, mean=mu, sd=sigma)
+curve(f, add=TRUE, col = "red", lwd = 2)
+
+#x <- seq(min(wek, na.rm = TRUE), max(wek, na.rm = TRUE), length = 100)
+#mu <- mean(data_diff_num[-1], na.rm = TRUE)
+#sigma <- sd(data_diff_num[-1], na.rm = TRUE)
+#y <- dnorm(x, mu, sigma)
+#lines(x, y, col = "red", lwd = 2)
+```
+
+Wyliczone parametry wrysowanego rozkładu normalnego dla danych:
+Wartość średnia:
+
+```{r echo=FALSE}
+mu
+```
+
+Odchylenie standardowe:
+
+```{r echo=FALSE}
+sigma
+```
+
+Próba aproksymacji wykresu rozkładem normalnym okazała się być słabym pomysłem. W celu uzyskania sensowniejszego wykresu należało skorzystać z innego narzędzia języka R.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+liczba_przedzialow <- 10 #liczba przedzialow ktore chce miec
+imp_prze <- rep(0, 10) #wektor liczby impulsow w danym przedziale
+pol_imp <- count_impuls  #polozenie impulsu - pomocnicza zmienna
+
+len = 500000 #dlugosc
+
+for (i in 1:length(count_impuls)) {
+  ind <- as.integer(pol_imp[i] / len) 
+  #print(ind)
+  imp_prze[ind] <- imp_prze[ind] + 1
+} #po tej pętli mam wektor z okreslajacy w ktorym przedziale ile jest impulsow
+
+#imp_prze
+
+
+```
+
+Parametry rozkładu Poissona dla wybranych danych:
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+parametry <- fitdistrplus::fitdist(imp_prze, "pois")
+```
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+parametry
+```
+
+
+Wykres z naniesionymi wartościami dyskretnego rozkładu Poissona.
+
+```{r echo=FALSE}
+hist(imp_prze, breaks = max(imp_prze), freq = FALSE, col = "grey", main = "Liczba impulsów w wybranej jednostce czasowej", xlab = "Liczba impulsów", ylab = "Częstość wystapienia danej liczby impulsów w przedziale")
+x = 0:max(imp_prze)
+la = parametry$estimate
+y = dpois(x = 0:max(imp_prze),la)
+points(x = x, y = y,pch = 15, col = "green")
+```
+
+Średnia liczba wystąpień impulsów dla wybranego przedziału wyniosła:
+```{r include=FALSE}
+count / (5*10^6)
+```
+
+```{r echo=FALSE}
+#: to samo co wyżej, ale lepiej widać logikę obliczeń
+liczba_próbek <- count
+długość_impulsu <- 1
+jednostka_czasu <- 5e6
+liczba_impulsów <- liczba_próbek * długość_impulsu / jednostka_czasu
+liczba_impulsów
+```
+
+<br>
+
+#### Analiza odstępów między sąsiednimi impulsami wybranej jednostce czasu
+
+Liczba wszystkich impulsów w całej próbie wyniosła:
+```{r echo=FALSE}
+probka_sygnalu = 5*10^9
+prog=0.02
+pp2 = v
+indexes <- 0
+count <- 0
+
+for (i in 1:length(pp2))
+{
+  if(pp2[i]>prog)
+  {
+    count <- count + 1
+    indexes = c(indexes,i)
+    for(j in (i+1):(i+500))
+    {
+       pp2[j] = 0.01
+    }
+    #i <- i+100
+  }
+
+}
+count
+#indexes
+```
+
+
+```{r echo=FALSE}
+#Różnice czyli odstępy czasowe między kolejnymi impulsami:
+a <- length(indexes)-1
+dif = c(1:a)
+for (i in 1:a)
+{
+  dif[i]=indexes[i+1]-indexes[i]
+}
+#dif
+#length(dif)
+```
+
+Rozkład odstępów czasowych między impulsami (wykres przy wykorzystaniu ggplot)
+
+```{r echo=FALSE, warning=FALSE}
+# histogram odstępów czasowych między impulsami
+library(ggplot2)
+hist<-ggplot() +
+  geom_histogram(aes(x = dif), bins = 20, fill = "lightblue", color = "black") +
+  labs(x = "Odstęp czasowy między impulsami", y = "Liczba wystąpień",
+       title = "Histogram odstępów czasowych między impulsami") #+
+  #stat_function(fun = dexp, args = list(rate = 1/mean(dif)), color = "red", size = 1.5)
+hist
+
+```
+```{r include=FALSE}
+library(MASS)
+```
+
+Modyfikując powyższy wykres (przez dobór innej skali i inny podział na odstępy czasowe między impulsami) tak, aby móc go dopasować do rozkładu wykładniczego, korzystając z innego narzędzia języka R otrzymano poniższy wykres z następującym parametrem rozkładu lambda:
+
+```{r echo=FALSE}
+param <- fitdistr(dif, "exponential")
+param
+```
+
+
+```{r echo=FALSE}
+
+breaks <- seq(min(dif), max(dif), length.out = 21)
+
+
+hist(dif, breaks=breaks, col = "lightblue", main = "Rozkład odstępów czasowych między impulsami",xlab = "Odstęp czasowy między impulsami", ylab = "Względna liczba wystąpień", freq = FALSE)
+curve(dexp(x, rate = param$estimate), col = "red", lwd = 3, add = TRUE)
+
+
+```
+
+Wykres pokazuje częstość wystąpień impulsów w zależności od odległości od poprzedniego impulsu.

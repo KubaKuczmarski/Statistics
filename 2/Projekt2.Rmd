@@ -1,0 +1,524 @@
+---
+title: "Sprawozdanie z projektu 2"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: #default #latex_engine:xelatex 
+  word_document: default
+---
+
+
+
+<right> <h4>*Jakub Kuczmarski*</h4> </right>
+
+<br>
+
+# Temat projektu
+Projekt składa się z dwóch problemów. Pierwszy z nich dotyczy weryfikacji hipotez statystycznych, natomiast drugi tyczy się zagadnienia estymacji.
+
+# Problem 1 
+Problem pierwszy jest kontynuacją zadania 1 z projektu pierwszego. Dla 2 wybranych miejcowości w Polsce, na podstawie danych maksymalnych temperatur przypadających na okres stycznia i lutego, zbadano dokładniej różnice tych temperatur dla obu miejscowości.  
+
+
+## Rozwiązanie
+
+### 1.1) Przygotowanie danych
+
+Do przeprowadzenia analiz wybrano miejscowości: Jarocin oraz Olecko.
+
+Olecko – miasto w północno-wschodniej części Polski w województwie warmińsko-mazurskim, powiecie oleckim, nad rzeką Legą i Jeziorem Oleckim Wielkim na Mazurach.
+
+Jarocin – miasto w środkowo-zachodniej Polsce, w województwie wielkopolskim, siedziba powiatu jarocińskiego i gminy Jarocin.
+
+Okres czasu wzięty pod uwagę do badań będzie przypadał na miesiące styczeń i luty roku 2023.
+
+```{r message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+library(tidyverse, quietly = TRUE)
+library(dplyr, quietly = TRUE)
+```
+
+Pobrane pliki do tego zadania to: k_d_01_2023, k_d_02_2023.
+```{r, echo=FALSE}
+# Styczeń 2023
+path3 = "./zad1-dane/2023_01_k/k_d_01_2023.csv"
+# Luty 2023
+path4 = "./zad1-dane/2023_02_k/k_d_02_2023.csv"
+```
+```{r, echo=FALSE}
+df3 <- read.csv(path3, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg","Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB", "Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN") , sep = ",", stringsAsFactors = FALSE)
+
+df4 <- read.csv(path4, header = FALSE, col.names = c("Numer", "Lokalizacja", "Rok", "Miesiac", "Dzien", "Tmax", "Status pomiaru Tmax", "Tmin", "Status pomiaru Tmin", "Tavg","Status pomiaru Tavg", "TMNG", "Status pomiaru TMNG", "SMDB", "Status pomiaru SMDB", "Rodzaj opadu  [S/W/ ]", "PKSN", "Status pomiaru PKSN") , sep = ",", stringsAsFactors = FALSE)
+rm(path3, path4)
+
+```
+```{r echo=FALSE, warning=FALSE, results='hide'}
+df_merged <- rbind(df3, df4)
+df_merged
+rm(df3, df4)
+```
+```{r, echo=FALSE, results='hide', warning=FALSE}
+write.csv(df_merged, "ferie.csv", row.names = FALSE)
+```
+```{r, echo=FALSE, results='hide', warning=FALSE}
+df_merged$Data <- as.Date(paste(df_merged$Rok, df_merged$Miesiac, df_merged$Dzien, sep = "-"), format = "%Y-%m-%d")
+head(df_merged)
+```
+```{r, echo=FALSE}
+locations <- c("JAROCIN", "OLECKO")
+data <- dplyr::select(df_merged,Lokalizacja, Data, Tmax)
+data <- dplyr::filter(data,Lokalizacja %in% locations)
+```
+
+Dane temeperaturowe dla obudwu miejscowości dla stycznia i lutego 2023 roku:
+```{r, echo=FALSE}
+data_2023 <- subset(data, format(data$Data, "%Y") == "2023")
+data_2023
+```
+
+### 1.2) Dokładniejsze ujęcie problemu
+
+Na wstępie postawiono odpowiednie hipotezy statystyczne:
+
+**H0** - Nie ma istotnej różnicy między maksymalną dobową temperaturą w Jarocinie i w Olecku w badanym okresie czasu. Innymi słowy: Rozkłady temperatur dla obu miejsowości są statystycznie takie same.
+
+**H1** - Maksymalna dobowa temperatura w Jarocinie w styczniu i lutym 2023 roku jest wyższa od maksymalnej dobowej temperatury dla Olecka. 
+
+Oprócz postawieniem hipotez należało zdefiniować również błędy I i II rodzaju.
+
+Błąd pierwszego rodzaju oznacza odrzucenie hipotezy zerowej (H0) w momencie, gdy jest ona prawdziwa, czyli wnioskowanie, że średnia maksymalna temperatura w Jarocienie jest wyższa, kiedy w rzeczywistości jest taka sama jak w Olecku, o tym samym rozkładzie.
+
+Błąd drugiego rodzaju oznacza przyjęcie hipotezy zerowej H0 w momencie, gdy jest ona nieprawdziwa, czyli wnioskowanie, że maksymalna temeperatura w Jarocinie jest taka sama jak maksymalna temperatura w Olecku, kiedy statystycznie nie są one takie same. 
+
+Decydującą sprawą podczas porównywania wyników jest stwierdzenie jak duża jest różnica średniej maksymalnych temperatur w stosunku do rozrzutu danych w grupach - wariancji rozkładów temperatur.
+
+### 1.3) Przedstawienie danych
+Przed przystąpieniem do analizy warto jest zobrazować graficznie analizowane dane i na tej podstawie wysnuć przewidywane wnioski.
+
+
+##### Wykres pudełkowy dla temperatur w badanym przedziale czasu - styczeń i luty rok 2023
+```{r, echo=FALSE}
+ggplot(data_2023, aes(x=Lokalizacja, y=Tmax)) +
+  geom_boxplot() +
+  labs(x = "Lokalizacja stacji badawczej", y = "Maksymalne dobowe temperatura [°C]") +
+  ggtitle("Temperatury dla stycznia i lutego w roku 2023") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Rozkład kwartylowy w Jarocinie:
+```{r, echo = FALSE}
+data_2023_Jarocin <- dplyr::filter(data_2023, Lokalizacja=="JAROCIN")
+data_2023_Jarocin <- dplyr::select(data_2023_Jarocin,Data,Tmax)
+data_2023_Jarocin <- arrange(data_2023_Jarocin ,desc(Tmax))
+#data_2023_Jarocin
+
+df_Jarocin <- data_2023_Jarocin # do testow statystycznych
+data_2023_Jarocin <- as.numeric(data_2023_Jarocin$Tmax)
+res<-quantile(data_2023_Jarocin, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+
+Rozkład kwartylowy w Olecku:
+```{r, echo = FALSE}
+data_2023_Olecko <- dplyr::filter(data_2023, Lokalizacja=="OLECKO")
+data_2023_Olecko <- dplyr::select(data_2023_Olecko, Data, Tmax)
+data_2023_Olecko <- arrange(data_2023_Olecko ,desc(Tmax))
+#data_2023_Olecko
+#data_2022 %>% filter(Lokalizacja=="OLECKO") %>% select(Tmax) %>% arrange(desc(Tmax)) -> data_2022_Olecko
+
+df_Olecko <- data_2023_Olecko  # do testow statystycznych
+data_2023_Olecko <- as.numeric(data_2023_Olecko$Tmax)
+res<-quantile(data_2023_Olecko, probs = c(0,0.25,0.5,0.75,1))
+res
+```
+
+Tabela 1. Wartość średnia, maksymalna i minimalna dla maksymalnych temperatur w wybranych miejscowości
+```{r, echo=FALSE}
+temp_param_2023 <- data_2023 %>%
+  dplyr::select(Lokalizacja, Data, Tmax) %>%
+  filter(Lokalizacja %in% locations) %>%
+  group_by(Lokalizacja) %>%
+  summarize(mean_temp = round(mean(Tmax), digits=1),
+            max_temp = max(Tmax),
+            min_temp = min(Tmax),
+            amplituda = max_temp - min_temp)
+temp_param_2023
+```
+
+
+#### Porównanie temperatur dla Jarocina i Olecka
+```{r, echo = FALSE}
+library(dplyr)
+ggplot() +
+  geom_line(data=df_merged %>% dplyr::select(Lokalizacja, Rok, Miesiac, Dzien, Tmax, Data) %>% 
+            filter(Lokalizacja=="JAROCIN", Rok == '2023', Miesiac %in%   c('1', '2'))  %>% arrange(Dzien),
+            aes(x=Data, y=Tmax, col = 'red')) +
+  
+  geom_line(data=df_merged %>% dplyr::select(Lokalizacja, Rok, Miesiac, Dzien, Tmax, Data) %>%
+            filter(Lokalizacja=="OLECKO", Rok == '2023', Miesiac %in%   c('1', '2'))  %>% arrange(Dzien),
+            aes(x=Data, y=Tmax, col = 'blue')) +
+  
+  labs(x = "Dzień", y = "Maksymalna dobowa temperatura [°C]") +
+  ggtitle("Porówanie temperatury w Jarocinie i Olecku - styczeń/luty 2023") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(values=c("red", "blue"), labels=c("Olecko","Jarocin"))
+```
+
+Analizując powyższe wykresy można odczytać kilka istotnych informacji dotyczących poziomu temperatuów w obu miejscowościach. Widać, że maksymalna dobowa temperatura w Jarocinie jest wyższa niż w Olecku. Tego typu spostrzeżenie wydaje się, być służne zważywszy na położenie geograficzne obu miast oraz okres czasu, w którym dokonano pomiarów. Mianowicie miejscowość Olecko leży w północno-wschodniej części Polski w województwie warmińsko-mazurskim, w którym to regionie statystycznie temperatura powietrza w ciągu roku (zwłaszcza w okresie zimowym) jest niższa niż w środkowo-zachodniej  Polsce, a dokładniej w województwie wielkopolskim, gdzie znajduje się Jarocin. Co więcej widoczny jest również podobny trend zmiany temperatury w danych przedziałach czasu - wartości temperatury w większości przypadków dla obu grup w tych samych okresach zaliczają mniej więcej podobne spadki i wzrosty. Fakt ten będzie oznaczał, że dane są od siebie zależne.
+
+Patrząc na wykres pudełkowy oraz rozkład kwartylowy można stwierdzić, że mediana temperatur dla miejscowości Jarocin jest znacząco wyższa niż dla miejsowści Olecko. Sugeruje to, że dane w Jarocinie są bardziej skoncentrowane wokół wyższych wartości temperatur, zaś w Olecku wokół niższych. Mimo to zakres wartości temperatury dla obu miejscowości jest podobny, przy czym Olecko ma nieco niższą najniższą wartość temperatury (-2.50 w porównaniu do -2.10 w Jarocinie), ale również nieco niższą najwyższą wartość temperatury (14.00°C w porównaniu do 14.30°C w Jarocinie).
+
+Do dokładnego sprawdzenia wartości omawianych metryk wykorzystano tabelę 1, która wzbogaca nasze wnioski o wartości średnich w każdej z miejscowości, a także wartości minimalne, maksymalne oraz amplitudę temperatury. W naszym przypadku szczególnie istotna jest średnia, ponieważ to właśnie ta metryka w głównej mierze decyduje o tym, w której miejscowości mamy do czynienia z wyższą bądź niższą maksymalna dobową temperaturą. Jak widać średnia w Jarocinie wynosi 4,70°C, zaś w Olecku 2.6°C. Pozwala to na wstępne oszacowanie prawdziwości hipotezy, że maksymalna dobowa temperatura w Jarocinie w styczniu i lutym 2023 roku była wyższa od temperatury w Olecku. Jednak, aby to potwierdzić w dalszej części projektu wykorzystano w tym celu odpowiednie testy statystyczne.
+
+
+### 1.4) Wybór i przeprowadzenie testu
+
+
+**Badanie normalnosci rozkładu**
+
+Na początku nie posiadano żadnej wiedzy na temat rozkładu parametrów. W pierwszej kolejności należy zatem ocenić normalność rozkładów wykorzystywanych danych po to, aby móc później wybrać odpowiedni rodzaj wykonywanych testów do weryfikacji hipotez. W tym celu posłużono się testem Shapiro-Wilka prezentowanym na wykładach. Służy on do sprawdzenia, czy dana próba pochodzi z populacji o rozkładzie normalnym i opiera się na porównaniu wartości próby z wartościami oczekiwanymi o rozkładzie normalnym.
+
+W teście Shapiro-Wilka przyjęcie hipotezy zerowej (H0) oznacza przyjęcie założenia, że dane mają rozkład normalny na określonym poziomie istotności, natomiast hipoteza alternatywna (H1) mówi, że dane wzięte do testu nie mają rozkładu normalnego.
+
+Do przeprowadzenia testów wybrano 2 zestawy temperatur - dla miejscowości Jarocin i Olecko.
+
+Przed wykonaniem wspomnianego testu, sprawdzono rozkład badanych danych. W tym celu stworzono histogramy temperataury dla obu miejscowości, które pozwaliły zwizualizować i ocenić jakie wartości temperatur były przyjmowane częściej, a które praktycznie nie występowały. Otrzymane histogramy zaprzezentowano poniżej:
+
+```{r, echo=FALSE}
+#data_plot <- data %>% filter(Lokalizacja == "JAROCIN")
+hist(df_Jarocin$Tmax, prob=TRUE, breaks = 20, col = "lightblue", main = "Histogram temperatury dla Jarocina",xlab="Temperatura")
+
+hist(df_Olecko$Tmax, prob=TRUE, breaks = 20, col = "lightblue", main = "Histogram temperatury dla Olecka",xlab="Temperatura")
+```
+
+**Test Shapiro-Wilka**
+
+Jarocin
+```{r, echo=FALSE}
+shapiro.test(df_Jarocin$Tmax)
+```
+Olecko
+```{r, echo=FALSE}
+shapiro.test(df_Olecko$Tmax)
+```
+
+Analizujac otrzymane wyniki można dojść do wniosku, że w przypadku miejscowości Olecko pojawiły sie podstawy do odrzucenia hipotezy zerowej i na tej podstawie stwierdzono, że rozkład temperatur nie jest rozkładem normalnym, zaś w przypadku Jarocina nie ma podstaw do odrzucenia hipotezy zerowej, co sugeruje, że rozkład temperatury może być rozkładem normalnym. Wnioski te zostały sformułowane przy założeniu, że poziom istotność testów wynosi α = 0.05, co jest wartością znacznie większą niż uzyskana w przypadku Olecka p-wartość równa 0.0009209 oraz mniejszą od p-wartości równej 0.2034 dla Jarocina.
+
+W związku z powyższymi spostrzeżeniami, do dalszych analiz nie będzie zakładana normalność rozkładów temperatur. 
+
+Aby utwierdzić się w przekonaniu o słuszności otrzymanych wyników testu Shapiro-Wilka, na poniższych dwóch wykresach zamieszczone zostały wcześniejsze histogramy, tym razem z nałożonym rozkładem normalnym o parametrach µ i σ bezpośrednio wynikających z poszczególnych danych.
+```{r, echo=FALSE}
+datJ <- as.numeric(df_Jarocin$Tmax)
+mean_val <- mean(datJ, na.rm = TRUE)
+sd_val <- sd(datJ, na.rm = TRUE)
+mean_str <- paste0("Wartość średnia: ", round(mean_val, 3))
+sd_str <- paste0("Odchylenie standardowe: ", round(sd_val, 3))
+print(mean_str)
+print(sd_str)
+
+x <- seq(min(na.omit(datJ[-1])), max(na.omit(datJ[-1][is.finite(datJ[-1])])), length = 100)
+y <- dnorm(x, mean_val, sd_val)
+hist(df_Jarocin$Tmax, prob=TRUE, breaks = 20, col = "lightblue", main = "Histogram temperatury dla Jarocina",xlab="Temperatura")
+lines(x, y, col = "red", lwd = 2)
+```
+
+```{r, echo=FALSE}
+datO <- as.numeric(df_Olecko$Tmax)
+mean_val <- mean(datO, na.rm = TRUE)
+sd_val <- sd(datO, na.rm = TRUE)
+mean_str <- paste0("Wartość średnia: ", round(mean_val, 3))
+sd_str <- paste0("Odchylenie standardowe: ", round(sd_val, 3))
+print(mean_str)
+print(sd_str)
+
+x <- seq(min(na.omit(datO[-1])), max(na.omit(datO[-1][is.finite(datO[-1])])), length = 100)
+y <- dnorm(x, mean_val, sd_val)
+hist(df_Jarocin$Tmax, prob=TRUE, breaks = 20, col = "lightblue", main = "Histogram temperatury dla Jarocina",xlab="Temperatura")
+lines(x, y, col = "red", lwd = 2)
+```
+
+Łatwo zauważyć, rozkład normalny w przypadku Olecka nie jest w stanie się dopasować do danych zwizualizowanych za pomocą histogramów (jest przesunięty w lewo), zaś dla Jarocina jest on znacznie lepiej dopasowany. Pozwala to stwierdzić słuszność otrzymanych wyników testu Shapiro-Wilka.
+
+
+**Badanie niezależności zmiennych losowych**
+
+
+**Korelacja Pearsona**
+
+W celu określenia rodzaju zależności między temperaturami w Jarocinie i Olecku sprawdzona została korelacja pomiędzy ich wartościami.
+
+
+```{r}
+correlation <- cor(df_Jarocin$Tmax,df_Olecko$Tmax)
+print(correlation)
+```
+W kontekście danych dotyczących temperatury (zmienna Tmax), wynik korelacji Pearsona wyniósł 0.9747231, co sugeruje, że istnieje silna dodatnia zależność między temperaturami w Jarocinie i Olecku. Oznacza to, że w przypadku, gdy temperatura w jednym z tych miejsc wzrasta, temperatura w drugim miejscu również wzrasta w podobny sposób. Wniosek ten potwierdza również wykres porównujący temperatury w Jarocinie i Olecku w okresie od stycznia do lutego roku 2023 (paragraf 'Przedstawienie danych'). W związku z tym postawione tam przez nas założenie podobnego trendy zmiany temperatury w danych przedziałach czasu okazało się trafne.
+
+Należy jednak pamiętać, że korelacja Pearsona mierzy tylko zależność liniową między zmiennymi i nie dostarcza informacji o innych rodzajach zależności, takich jak zależność nieliniowa czy przyczynowość. Dlatego ważne jest, aby dokładnie analizować kontekst i interpretować wyniki wraz z innymi informacjami dostępnymi na temat badanych zmiennych.
+
+
+**Badanie relacji poziomów temperatur w obu miejscowościach**
+
+Zatem przy założeniu braku normalności rozkładów temperatur (wnioski wyciągnięte w części 'Badanie normalności rozkładu'), w ogólności należy posłużyć się nieparametrycznym testem tj. test Manna - Whitneya - Wilcoxona. 
+
+```{r, echo=FALSE}
+#Pomoc w iterpretacji wyników
+#sparowany - zalezne dane, nieparametrycznym
+#niesparowny - niezalezne dane, nieparametryczne
+```
+
+**Test Manna - Whitneya - Wilcoxona**
+
+Test Manna-Whitneya-Wilcoxona (znany również jako test Manna-Whitneya lub test U Manna-Whitneya) to nieparametryczny test statystyczny używany do porównywania dwóch grup w celu oceny, czy jedna grupa ma tendencję do większych wartości niż druga. Test ten opiera się na porównywaniu rang próbek między grupami.
+
+
+**Sparowany test Wilcoxona**
+
+W związku z tym, że rozpatrywane miejsowości leżą w tej samej strefie klimatycznej oraz uzyskane wyniki korelacji Pearsona świadczą o występowaniu zależności między danymi (temperatury w Olecku i Jarocinie są ze sobą dodatnio skorelowane), należy skorzystać ze sparowanej odmiany testu Wilcoxona. 
+
+Uzyskane wyniki prezentują się następujaco:
+```{r}
+wilcox.test(df_Jarocin$Tmax,df_Olecko$Tmax, alternative="greater", paired=TRUE)
+```
+
+### 1.5) Wnioski końcowe
+
+Wyniki testu Wilcoxona wskazują, że istnieje istotna statystyczna różnica między rozkładami temperatur w Jarocinie i Olecku. Są silne podstawy do odrzucenia hipotezy zerowej, która zakładała, że nie ma różnicy w położeniu (średniej) między tymi grupami. Wynika to z faktu, że p-wartość dla tego testu jest dużo mniejsza od przyjętego poziomu istotności α = 0.05. Odrzucenie hipotezy H0 odbyłoby się na rzecz hipotezy H1 mówiącej o tym, że temperatura w Jarocinie jest wyższa niż w Olecku.
+
+
+
+# Problem 2
+Problem drugi polega na wyborze konkretnego problemu estymacji parametru rozkładu na podstawie próby losowej z tego rozkładu, a następnie znalezieniu estymatora największej wiarygodności rozwiązującego ten problem. Na koniec należy dla tego estymatora przeprowadzić symulacje komputerowe, które zobrazują dla kilku wartości estymowanego parametru:
+
+A. zbieżność wariancji estymatora do kresu Cramera-Rao,
+
+B. asyptotyczne nieobciążenie – zbieżność obciążenia do zera
+
+C. asymptotyczną normalność estymatora.
+
+## Rozwiązanie
+Do analizy wybrano rozkład dwupunktowy Bernoulliego oraz próbę losową z tegoż rozkładu. 
+
+```{r message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+library(IRdisplay, quietly = TRUE)
+```
+
+Rozkład Bernoulliego jest rozkładem z jednym parametrem $p$ stanowiącym wartość oczekiwaną dla pojedynczego zdarzenia. Parametr ten określa prawdopodobieństwo wyrzucenia np. orła, jeżeli rozpatrywana próba losowa to ciąg niezależnych rzutów monetą.
+
+Rozkład Bernoulliego można opisać jako rozkład prawdopodobieństwa zmiennej losowej X, gdzie:
+- $x = 1$, jeśli wypadnie "orzeł" z prawdopodobieństwem:
+$$f_p(1) = p \ \ \ \ \ \ \ (1)$$
+
+- $x = 0$, jeśli wypadnie "reszka" z prawdopodobieństwem:
+$$f_p(0) = 1 - p \ \ \ \ \ \ \ (2)$$
+dla  $p$ z przedziału $0 ≤ p ≤ 1$.
+
+W przypadku rzutów symetryczną monetą parametr $p$ równy jest 0,5.
+
+### Estymacja punktowa
+Estymacja punktowa to metoda estymacji parametrów populacji na podstawie próby losowej. Polega na wyznaczeniu pojedynczej liczby, zwanej estymatorem punktowym, która służy jako przybliżona wartość szukanego parametru.
+
+W przykładzie wyznaczony zostanie estymator punktowy \\(\\hat{p}\\) prawdopodobieństwa wypadnięcia orła dla próby losowej polegającej na rzutach monetą.
+
+### Estymator największej wiarygodności
+Do wyznaczenia estymatora punktowego wykorzytsano metodę największej wiarygodnoci. Metoda ta polega na wyborze takiej wartości parametru, która maksymalizuje funkcję wiarygodności na podstawie dostępnej próby losowej. W tym przypadku będziemy maksymalizować funkcję wiarygodności względem parametru prawdopdobieństwa \\({p}\\) wylosowania orła. Funkcja ta wyraża sie wzorem:
+
+$$
+\\L_n(p) = f_p(X_1) \times \ldots \times f_p(X_n)  \ \ \ \ \ \ \ (3)
+$$ 
+
+Jest to iloczyn funkcji rozkładów prawdopodobieństwa przeprowadzonej próby losowej. W związku z tym, że funkcje prawdopodobieństwa zależą nie tylko od parametru, ale także od próby losowej, powyższy wzór można zapisać w następujacy sposób:
+
+$$
+\\L_n(p) = p^{liczba1}(1-p)^{liczba0} = p^{X_1+\ldots +X_n}(1-p)^{n-(X_1+\ldots +X_n)}  \ \ \ \ \ \ \ (4)
+$$ 
+
+Wzór ten pozwala na uzależnienie funkcji wiarygodnosci zarówno od próby losowej, jak i parametru p. 
+W celu uproszczenia dalszych obliczeń funkcję wiarygodności z równania (4) zlogarytmowano obustronnie. W efekcie otrzymano wzór:
+$$
+\\l_n(p) = (X_1+\ldots +X_n) \ln p + (n-(X_1+\ldots +X_n)) \ln(1-p)  \ \ \ \ \ \ \ (5)
+$$ 
+Kolejnym krokiem jest wyznaczenie argumentu, dla którego powyższa funkcja przyjmie wartość maksymalną. W tym celu wyznaczono pochodną I rzędu z rówania (5) i przyrównano wynik do 0, wyznaczając tym samym estymator $\hat{p}$.
+
+$$
+\\\frac{l_n(p)}{dp} = \frac{X_1+\ldots +X_n}{p} - \frac{n-(X_1+\ldots +X_n)}{1-p}  \ \ \ \ \ \ \ (6)
+$$ 
+
+$$
+\frac{X_1+\ldots +X_n}{\hat{p}} - \frac{n-(X_1+\ldots +X_n)}{1-\hat{p}}= 0 \ \ \ \ \ \ \ (7)
+$$ 
+Ostatecznie wzór na estymator parametru $p$ prezentuje sie następująco:
+$$
+\hat{p} = \frac{X_1+\ldots +X_n}{n} = \overline{X_n} = m_1  \ \ \ \ \ \ \ (8)
+$$ 
+Otrzymany estymator jest równy średniej z próby, a to z kolei jest równe pierwszemu momentowi z próby (estymacja za pomocą metody momentów). 
+
+*(Powyższe przekształcenia boazują na materiałach wykładowych - prezentacja "Estymatory największej wiarygodności" slajd 6)*
+
+Przydatnym parametrem do dalszych rozważań jest informacja Fishera. Informacja Fishera dla rozkładu Bernoulliego prezentowana jest jak poniżej. Wzór ten zaczerpnięto z materiałów wykładowych.
+
+$$
+\ I = \frac{1}{p(1-p)}  \ \ \ \ \ \ \ (9)
+$$ 
+
+### Wyznaczenie wartości estymatora największej wiarygodności dla przeprowadzonego eksperymentu rzutu symetryczną monetą
+
+Zdecydowano się przeprowadzić dodatkowo eksperyment w celu lepszego zilustrowania problemu. 
+
+Uzyskane wyniki rzutów symetryczną monetą zamieszczono w Tabeli 2.
+
+<small>Tabela 2 *Wyniki eksperymentu rzutu monetą (0 = reszka, 1 = orzeł)*</small>
+
+```{r echo=FALSE, out.width='175%'}
+knitr::include_graphics("./photos/WynikiRzutu.png")
+```
+
+Wyniki eksperymentu mogą stanowić próbę losową składającą się z dziesięciu niezależnych od siebie elementów o tym samym rozkładzie. Taki ciąg zmiennych losowych można opisać za pomocą rozkładu dwupunktowego Bernoulliego.
+
+Podstawiając odpowiednie wartości z Tabeli 1 do wzoru (8) orzymano wartość estymatora parametru $\hat{p}$ równą:
+
+$$
+\hat{p} = \frac{1+0+1+0+1+0+1+0+0+0+1+0}{10} = 0,4  \ \ \ \ \ \ \ (10)
+$$ 
+
+**Wnioski**
+
+Wyznaczona wartość estymatora parametru $p$ wynosi 0,4. Jest to szacowane prawdopodobieństwo wylosowania orła dla rzutów tą monetą. Parametr ten nie jest równy 0.5, ponieważ zbadana próba losowa w opisanym eksperymencie jest bardzo mała. Estymator największej wiarygodności natomiast jest estymatorem asymptotycznie nieobciążonym, czyli dla dużych prób losowych zbiega do coraz lepszych oszacowań prawdziwej wartości szukanego parametru. Widać zatem, że ten estymator zależy w dużym stopniu od próby losowej oraz jej wielkości.
+
+### Generowanie danych dla większej próby losowej
+Etap ten ilustruje ogólniejsze podejście do zagadnienia estymacji parametru dla rozkładu Bernoulliego.
+
+Na początku wygenerowano 100 elementową próbę losową przy użyciu generatora dla rzutów monetą.
+```{r}
+set.seed(123)  # Ustawienie ziarna
+n <- 100  # Rozmiar próby
+data <- sample(c("Orzeł", "Reszka"), size = n, replace = TRUE) #dane
+```
+
+### Zobrazowanie wyników dla wartości estymowanego parametru
+Dane dla próby przedstawiono poniżej:
+```{r echo=FALSE}
+library(DT)
+tabela <- data.frame(Wektor = data)
+datatable(tabela, options = list(scrollX = TRUE, scrollY = "175px"))
+```
+Liczba orłów dla obu prób losowych:
+```{r echo=FALSE}
+number_one <- sum(data=="Orzeł")
+number_one # Próba 100-elementowa
+```
+
+
+Estymatora największej wiarygodnosci dla obu prób losowych jest równy:
+```{r}
+estymator_MLE <- sum(data == "Orzeł") / n  # Próba 100-elementowa
+estymator_MLE
+```
+
+#### A. zbieżność wariancji estymatora do kresu Cramera-Rao
+Zbieżność wariancji estymatora do kresu Cramera-Rao jest jednym z aspektów związanych z właściwościami estymatora. Jest to zjawisko, w którym wariancja estymatora, gdy próba rośnie do nieskończoności, zbliża się do dolnego ograniczenia teoretycznego określanego jako kres Cramera-Rao.
+
+```{r}
+sample_sizes <- seq(10, 300, by = 5) # Tworzymy zbiór sekwencję wartości od 10 do 1000, z krokiem 10
+result <- matrix(0, nrow = length(sample_sizes), ncol = 3)
+variances <- numeric(length(sample_sizes)) # Wariancja dla każdej próby
+variances2 <- numeric(length(sample_sizes)) 
+cramer_rao <- numeric(length(sample_sizes)) 
+
+for (i in seq_along(sample_sizes)) {
+  sample <- sample(c("Orzeł", "Reszka"), size = sample_sizes[i], replace = TRUE) #dane
+  p <- sum(sample == "Orzeł") / sample_sizes[i] # wartość estymatora
+  variances[i] <- p * (1 - p) / sample_sizes[i]  # wartość wariancji dla próby o rozmiarze sample_sizes[i]
+  cramer_rao[i] = 1/2*(1-1/2)/sample_sizes[i] #wartosc kresu cramera rao
+  result[i,] <- c(sample_sizes[i], variances[i], cramer_rao[i])
+}
+results_data_frame <- data.frame(result)
+colnames(results_data_frame) <- c("sample_sizes", "wariancja", "cramer_rao")
+```
+
+```{r, Plots, warning = FALSE, message = FALSE, echo = FALSE,fig.width = 10}
+library(ggplot2)
+ggplot(data = results_data_frame, aes(x = sample_sizes)) +
+   geom_line(aes(y = variances, color = paste0("Wariancja estymatora")), size = 1) +
+   geom_line(aes(y = cramer_rao, color = "Kres Cramera-Rao"), linetype = "dashed", size = 1) +
+  labs(x = "Rozmiar próby", y = "Wariancja", color = "") +
+  ggtitle(paste0("Zbieżność wariancji do kresu Cramera-Rao"))
+```
+
+Analizując wyniki można zobaczyć jak zmienia się wariancja estymatora wraz ze wzrostem rozmiaru próby losowej. Widać, że estymator jest zbieżny do kresu Cramera-Rao. Ponadto widać też, że dla rosnącej próby losowej wariancja estymatora maleje w przybliżeniu wykładniczo.
+
+
+#### B. asyptotyczne nieobciążenie – zbieżność obciążenia do zera
+
+Tak jak to zostało opisane i zauważone w części pierwszej problemu - estymator asymptotycznie nieobciążony to taki, w którym w miarę zwiększania rozmiaru próby do nieskończoności, oczekiwana wartość estymatora dąży do rzeczywistej wartości parametru populacji. Tą zależnosć prezentuje poniższy wzór:
+
+$$\lim_{n->\inf} E(\hat{p_n})=p    \ \ \ \ \ \ \ (10)$$
+
+Asymptotyczna nieobciążoność jest ważnym kryterium w ocenie jakości estymatora, ponieważ oznacza, że estymator staje się coraz dokładniejszy i bardziej zbliżony do rzeczywistej wartości parametru populacji, gdy liczba obserwacji rośnie. Jest to szczególnie istotne w przypadku dużych prób, gdzie efekt obciążenia jest minimalny.
+
+```{r}
+set.seed(123)  # Ustawienie tego samego ziarna
+
+sample_sizes <- seq(100, 10000, by = 50)  # Różne rozmiary próbek
+result2 <- matrix(0, nrow = length(sample_sizes), ncol = 2)
+biases <- numeric(length(sample_sizes))
+
+for (i in seq_along(sample_sizes)) {
+  sample <- sample(c("Orzeł", "Reszka"), size = sample_sizes[i], replace = TRUE) #dane
+  p <- 1/2
+  p_hat <- sum(sample == "Orzeł") / sample_sizes[i]
+  biases[i] <- p-p_hat
+  result2[i,] <- c(sample_sizes[i], biases[i])
+}
+
+results_data_frame2 <- data.frame(result2)
+colnames(results_data_frame2) <- c("sample_sizes", "biases")
+```
+
+```{r, Plots2, warning = FALSE, message = FALSE, echo = FALSE, fig.width = 10}
+ggplot(data = results_data_frame2, aes(x = sample_sizes)) +
+  geom_line(aes(y = biases, color = paste0("obciążenie")), size = 1) +
+  labs(x = "Rozmiar próby", y = "Obciążenie", color = "") +
+  geom_hline(yintercept = 0, linetype = "dotdash", color = "blue") +
+  ggtitle("Zbieżność obciążenia estymatora do 0")
+```
+
+
+Analizujac otrzymany wykres widać, że wraz ze wzrostem rozmiaru próby otrzymywane wartości obciążenia estymatora oscylują coraz bliej zera, co pozwala stwierdzić, że badany estymator jest estymatorem asymptotycznie nieobciążonym.
+
+#### C. Asymptotyczna normalność estymatora.
+
+Asymptotyczna normalność estymatora jest własnością estymatora, która mówi nam, że dla dużych rozmiarów próby (gdy liczba obserwacji wzrasta do nieskończoności), rozkład estymatora dąży do rozkładu normalnego. Innymi słowy, gdy próba jest wystarczająco duża, estymator ma przybliżony rozkład normalny
+
+```{r}
+n_simulations <- 1000  # Liczba symulacji Monte Carlo
+sample_sizes <- c(10, 30, 100)  # Różne rozmiary próbek
+
+for (n in sample_sizes) {
+  estimates <- numeric(n_simulations)
+  
+  for (i in 1:n_simulations) {
+    sample <- sample(c("Orzeł", "Reszka"), size = n, replace = TRUE)
+    p_hat <- sum(sample == "Orzeł") / n
+    p <- 1/2
+    estimates[i] <- (p_hat-p)*sqrt(n) #normalizacja estymatora
+  }
+  
+  hist(estimates,  freq=FALSE,breaks = 20, main = paste("Rozmiar próby:", n), ylab = "Liczba estymatorów", xlab = "Estymator")
+  
+  mu <- 0 #mean(estimates)  # Średnia estymatorów, bo estymator znormalizowany
+  sigma <- sd(estimates)  # Odchylenie standardowe estymatorów
+  
+  x <- seq(min(estimates), max(estimates), length = 1000)
+  y <- dnorm(x, mean = mu, sd = sigma)
+  lines(x, y, col = "red", lwd = 2)
+  
+  legend("topright", legend = "Rozkład normalny", col = "red", lwd = 2)
+}
+```
+
+Analiza wykresów wskazuje, że faktycznie estymator obliczony metodą największej wiarygodności jest asymptotycznie normalny. Dla coraz większej liczebności próby losowej rozkład jego wartości coraz bardziej przypomina rozkład normalny o parametrach $\mu=0$ i $\sigma=\sigma_{MLE}$
+
+
+
+
